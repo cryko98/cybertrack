@@ -86,6 +86,11 @@
         <h2 class="card-title"><span>Most Attacked Ports</span><i>24h</i></h2>
         <ul id="ports" class="bars"><li class="skeleton"></li><li class="skeleton"></li><li class="skeleton"></li></ul>
       </section>
+
+      <section class="card">
+        <h2 class="card-title"><span>Most Hit Countries</span><i>7d · click to focus</i></h2>
+        <ul id="countries" class="chips"></ul>
+      </section>
     </aside>
 
     <!-- CENTER: holographic globe -->
@@ -107,11 +112,31 @@
 
       <div id="globe" class="globe"></div>
 
-      <div class="globe-legend">
-        <span><i class="lg lg-red"></i>Attack source → sensor</span>
-        <span><i class="lg lg-amber"></i>Ransomware victim</span>
-        <span><i class="lg lg-cyan"></i>Sensor grid</span>
+      <div id="crypto-alert" class="crypto-alert" role="status" aria-live="polite"></div>
+
+      <div class="view-controls" role="group" aria-label="Globe controls">
+        <button id="btn-rotate" type="button" title="Pause rotation" aria-label="Pause rotation">
+          <svg viewBox="0 0 24 24" class="i-pause"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>
+          <svg viewBox="0 0 24 24" class="i-play"><path d="M7 4l13 8-13 8z"/></svg>
+        </button>
+        <button id="btn-zoom-in" type="button" title="Zoom in" aria-label="Zoom in"><svg viewBox="0 0 24 24"><path d="M11 5h2v14h-2zM5 11h14v2H5z"/></svg></button>
+        <button id="btn-zoom-out" type="button" title="Zoom out" aria-label="Zoom out"><svg viewBox="0 0 24 24"><path d="M5 11h14v2H5z"/></svg></button>
+        <button id="btn-reset" type="button" title="Reset view" aria-label="Reset view"><svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg></button>
       </div>
+
+      <div class="globe-legend layer-toggles" role="group" aria-label="Map layers">
+        <button type="button" class="layer on" data-layer="attacks" aria-pressed="true"><i class="lg lg-red"></i>Attacks</button>
+        <button type="button" class="layer on" data-layer="ransomware" aria-pressed="true"><i class="lg lg-amber"></i>Ransomware</button>
+        <button type="button" class="layer on" data-layer="crypto" aria-pressed="true"><i class="lg lg-purple"></i>Crypto</button>
+        <button type="button" class="layer on" data-layer="sensors" aria-pressed="true"><i class="lg lg-cyan"></i>Sensors</button>
+      </div>
+
+      <aside id="intel" class="intel" aria-live="polite" hidden>
+        <button id="intel-close" class="intel-close" type="button" aria-label="Close">×</button>
+        <div id="intel-body"></div>
+      </aside>
+
+      <p class="globe-hint">Drag to rotate · scroll to zoom · click a country, attacker or chain</p>
 
       <div id="boot" class="boot">
         <div class="boot-inner">
@@ -123,6 +148,28 @@
 
     <!-- RIGHT: live feed -->
     <aside class="panel panel-right">
+      <section class="card crypto-card">
+        <h2 class="card-title"><span>Crypto Attack Radar</span><i class="blink-purple">● LIVE</i></h2>
+        <div class="crypto-hero">
+          <span class="stat-label">Stolen from crypto · last 12 months</span>
+          <span id="crypto-12m" class="crypto-big">—</span>
+          <div class="crypto-mini">
+            <div><b id="crypto-30d">—</b><span>stolen · 30d</span></div>
+            <div><b id="crypto-30d-n">—</b><span>hacks · 30d</span></div>
+            <div><b id="crypto-sol" class="sol">—</b><span>Solana hacks · 12mo</span></div>
+          </div>
+        </div>
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" class="tab active" data-tab="hacks">Latest Hacks</button>
+          <button type="button" role="tab" class="tab" data-tab="drainers">SOL Drainers</button>
+          <button type="button" role="tab" class="tab" data-tab="vectors">Vectors</button>
+        </div>
+        <div id="crypto-filter" class="crypto-filter" hidden></div>
+        <ol id="crypto-hacks" class="tab-pane hack-list active"><li class="skeleton"></li><li class="skeleton"></li><li class="skeleton"></li></ol>
+        <ul id="crypto-drainers" class="tab-pane drainer-list"></ul>
+        <ul id="crypto-vectors" class="tab-pane bars purple"></ul>
+      </section>
+
       <section class="card feed-card">
         <h2 class="card-title"><span>Live Attack Feed</span><i class="blink">● REC</i></h2>
         <ol id="feed" class="feed"></ol>
@@ -133,15 +180,11 @@
         <ul id="gangs" class="bars red"><li class="skeleton"></li><li class="skeleton"></li><li class="skeleton"></li></ul>
       </section>
 
-      <section class="card">
-        <h2 class="card-title"><span>Most Hit Countries</span><i>7d</i></h2>
-        <ul id="countries" class="chips"></ul>
-      </section>
     </aside>
   </main>
 
   <footer class="ticker" aria-label="Newly exploited vulnerabilities">
-    <div class="ticker-label">CISA KEV</div>
+    <div class="ticker-label">THREAT WIRE</div>
     <div class="ticker-track"><div id="ticker" class="ticker-inner"><span>Loading known exploited vulnerabilities…</span></div></div>
   </footer>
 
