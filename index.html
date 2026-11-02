@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>$CYBERTRACKER — Live Cyber Attack Map</title>
+  <meta name="description" content="$CYBERTRACKER — the Solana memecoin that watches the internet burn. Live global cyber attack tracker powered by real threat intelligence feeds.">
+  <meta name="theme-color" content="#020814">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='26' fill='none' stroke='%2300e5ff' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='6' fill='%23ff2a4d'/%3E%3Cpath d='M32 2v14M32 48v14M2 32h14M48 32h14' stroke='%2300e5ff' stroke-width='4'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="matrix" aria-hidden="true"></canvas>
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="$CYBERTRACKER home">
+      <svg class="brand-icon" viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="26" />
+        <circle cx="32" cy="32" r="15" class="dash" />
+        <circle cx="32" cy="32" r="5" class="core" />
+        <path d="M32 0v16M32 48v16M0 32h16M48 32h16" />
+      </svg>
+      <span class="brand-text" data-text="$CYBERTRACKER">$CYBERTRACKER</span>
+    </a>
+
+    <div class="ca-box">
+      <span class="ca-label">CA:</span>
+      <code id="ca-value" class="ca-value">xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code>
+      <button id="ca-copy" class="ca-copy" type="button" aria-label="Copy contract address">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
+        <span class="ca-copy-text">COPY</span>
+      </button>
+    </div>
+
+    <div class="top-right">
+      <div class="live-pill"><span class="dot"></span>LIVE <span id="utc-clock">--:--:--</span> UTC</div>
+      <a id="x-link" class="x-link" href="#" target="_blank" rel="noopener noreferrer" aria-label="$CYBERTRACKER on X">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <!-- LEFT: global stats -->
+    <aside class="panel panel-left">
+      <section class="card">
+        <h2 class="card-title"><span>Global Threat Level</span><i>SANS ISC</i></h2>
+        <div id="infocon" class="infocon" data-level="loading">
+          <div class="infocon-bars"><b></b><b></b><b></b><b></b></div>
+          <strong id="infocon-text">SCANNING…</strong>
+        </div>
+      </section>
+
+      <section class="card stats">
+        <div class="stat">
+          <span class="stat-label">Attack reports · 24h</span>
+          <span id="stat-reports" class="stat-value">—</span>
+          <span class="stat-sub">DShield sensor network</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Unique attacking IPs · 24h</span>
+          <span id="stat-sources" class="stat-value">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Ransomware victims · 7d</span>
+          <span id="stat-victims" class="stat-value red">—</span>
+          <span class="stat-sub">Leak-site disclosures</span>
+        </div>
+        <div class="stat-row">
+          <div class="stat">
+            <span class="stat-label">Exploited CVEs</span>
+            <span id="stat-kev" class="stat-value sm">—</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">IPs on 5+ blocklists</span>
+            <span id="stat-ipsum" class="stat-value sm">—</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title"><span>Most Attacked Ports</span><i>24h</i></h2>
+        <ul id="ports" class="bars"><li class="skeleton"></li><li class="skeleton"></li><li class="skeleton"></li></ul>
+      </section>
+    </aside>
+
+    <!-- CENTER: holographic globe -->
+    <section class="globe-stage" aria-label="Live attack globe">
+      <div class="globe-title">
+        <span class="kicker">// real-time threat intelligence</span>
+        <h1><span class="neon-red" data-text="CYBER ATTACK">CYBER ATTACK</span> <span class="neon-cyan">TRACKER</span></h1>
+      </div>
+
+      <div class="holo" aria-hidden="true">
+        <svg viewBox="0 0 600 600">
+          <circle class="r1" cx="300" cy="300" r="290" />
+          <circle class="r2" cx="300" cy="300" r="270" />
+          <circle class="r3" cx="300" cy="300" r="250" />
+          <g class="ticks"></g>
+        </svg>
+        <div class="sweep"></div>
+      </div>
+
+      <div id="globe" class="globe"></div>
+
+      <div class="globe-legend">
+        <span><i class="lg lg-red"></i>Attack source → sensor</span>
+        <span><i class="lg lg-amber"></i>Ransomware victim</span>
+        <span><i class="lg lg-cyan"></i>Sensor grid</span>
+      </div>
+
+      <div id="boot" class="boot">
+        <div class="boot-inner">
+          <div class="boot-ring"></div>
+          <p id="boot-text">INITIALIZING THREAT FEEDS…</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: live feed -->
+    <aside class="panel panel-right">
+      <section class="card feed-card">
+        <h2 class="card-title"><span>Live Attack Feed</span><i class="blink">● REC</i></h2>
+        <ol id="feed" class="feed"></ol>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title"><span>Top Ransomware Gangs</span><i>7d</i></h2>
+        <ul id="gangs" class="bars red"><li class="skeleton"></li><li class="skeleton"></li><li class="skeleton"></li></ul>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title"><span>Most Hit Countries</span><i>7d</i></h2>
+        <ul id="countries" class="chips"></ul>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="ticker" aria-label="Newly exploited vulnerabilities">
+    <div class="ticker-label">CISA KEV</div>
+    <div class="ticker-track"><div id="ticker" class="ticker-inner"><span>Loading known exploited vulnerabilities…</span></div></div>
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/globe.gl@2.32.0/dist/globe.gl.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
