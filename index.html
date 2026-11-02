@@ -57,12 +57,12 @@
 
       <section class="card stats">
         <div class="stat">
-          <span class="stat-label">Attack reports · 24h</span>
+          <span class="stat-label">Attack reports · 1 day</span>
           <span id="stat-reports" class="stat-value">—</span>
-          <span class="stat-sub">DShield sensor network</span>
+          <span class="stat-sub">SANS ISC DShield honeypots · <span class="isc-day">latest day</span></span>
         </div>
         <div class="stat">
-          <span class="stat-label">Unique attacking IPs · 24h</span>
+          <span class="stat-label">Unique attacking IPs · 1 day</span>
           <span id="stat-sources" class="stat-value">—</span>
         </div>
         <div class="stat">
@@ -96,7 +96,7 @@
     <!-- CENTER: holographic globe -->
     <section class="globe-stage" aria-label="Live attack globe">
       <div class="globe-title">
-        <span class="kicker">// real-time threat intelligence</span>
+        <span class="kicker">// live public threat-intel feeds</span>
         <h1><span class="neon-red" data-text="CYBER ATTACK">CYBER ATTACK</span> <span class="neon-cyan">TRACKER</span></h1>
       </div>
 
@@ -125,10 +125,11 @@
       </div>
 
       <div class="globe-legend layer-toggles" role="group" aria-label="Map layers">
-        <button type="button" class="layer on" data-layer="attacks" aria-pressed="true"><i class="lg lg-red"></i>Attacks</button>
+        <button type="button" class="layer on" data-layer="routes" aria-pressed="true" hidden><i class="lg lg-red"></i>Routes</button>
+        <button type="button" class="layer on" data-layer="sources" aria-pressed="true"><i class="lg lg-red"></i>Sources</button>
         <button type="button" class="layer on" data-layer="ransomware" aria-pressed="true"><i class="lg lg-amber"></i>Ransomware</button>
         <button type="button" class="layer on" data-layer="crypto" aria-pressed="true"><i class="lg lg-purple"></i>Crypto</button>
-        <button type="button" class="layer on" data-layer="sensors" aria-pressed="true"><i class="lg lg-cyan"></i>Sensors</button>
+        <button id="btn-method" type="button" class="layer method" title="Where the data comes from">ⓘ Data</button>
       </div>
 
       <aside id="intel" class="intel" aria-live="polite" hidden>
@@ -136,7 +137,7 @@
         <div id="intel-body"></div>
       </aside>
 
-      <p class="globe-hint">Drag to rotate · scroll to zoom · click a country, attacker or chain</p>
+      <p class="globe-hint">Drag to rotate · scroll to zoom · click a country, attacker or chain · chain badges are symbolic</p>
 
       <div id="boot" class="boot">
         <div class="boot-inner">
@@ -172,7 +173,7 @@
       </section>
 
       <section class="card feed-card">
-        <h2 class="card-title"><span>Live Attack Feed</span><i class="blink">● REC</i></h2>
+        <h2 class="card-title"><span>Threat Intel Feed</span><i>age shown</i></h2>
         <ol id="feed" class="feed"></ol>
       </section>
 

@@ -946,3 +946,10 @@ body {
   .feed { max-height: 360px; }
   .ticker { position: sticky; bottom: 0; }
 }
+
+/* Honest placeholders */
+.layer[hidden], .ca-copy[hidden] { display: none; }
+.ca-value.pending { color: var(--muted); font-style: italic; }
+.layer.method { color: var(--cyan); border-color: rgba(0, 229, 255, 0.35); }
+.feed .t { min-width: 44px; text-align: right; }
+.intel ul li b { color: #fff; font-weight: normal; }

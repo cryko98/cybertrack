@@ -26,23 +26,8 @@ const FEEDS = {
   ipsum: "https://raw.githubusercontent.com/stamparm/ipsum/master/levels/5.txt",
   geo: ip => `https://api.ipapi.is/?q=${ip}`,
   geoFallback: ip => `https://isc.sans.edu/api/ip/${ip}?json`,
+  pairs: "/api/attack-pairs", // Vercel function → Cloudflare Radar origin/target pairs
 };
-
-// Where the DShield honeypot sensor grid is drawn on the globe
-const SENSORS = [
-  { name: "Virginia", lat: 38.9, lng: -77.4 },
-  { name: "Oregon", lat: 45.6, lng: -121.2 },
-  { name: "Toronto", lat: 43.7, lng: -79.4 },
-  { name: "São Paulo", lat: -23.5, lng: -46.6 },
-  { name: "London", lat: 51.5, lng: -0.1 },
-  { name: "Frankfurt", lat: 50.1, lng: 8.7 },
-  { name: "Stockholm", lat: 59.3, lng: 18.1 },
-  { name: "Johannesburg", lat: -26.2, lng: 28.0 },
-  { name: "Mumbai", lat: 19.1, lng: 72.9 },
-  { name: "Singapore", lat: 1.35, lng: 103.8 },
-  { name: "Tokyo", lat: 35.7, lng: 139.7 },
-  { name: "Sydney", lat: -33.9, lng: 151.2 },
-];
 
 // Small countries missing from the 110m country shapes
 const EXTRA_CENTROIDS = {
@@ -95,7 +80,8 @@ const state = {
   victimIdx: 0,
   hackIdx: 0,
   reportsPerSec: 0,
-  layers: { attacks: true, ransomware: true, crypto: true, sensors: true },
+  layers: { routes: true, sources: true, ransomware: true, crypto: true },
+  pairs: [],            // Cloudflare Radar origin → target country pairs
   hover: null,
   selected: null,
   userPaused: false,
@@ -119,8 +105,13 @@ function money(n) {
 /* ---------------- Header: CA + X link + clock ---------------- */
 
 function initHeader() {
-  $("ca-value").textContent = CONFIG.CA;
+  // Until a real contract address is set, say so instead of showing a fake one
+  const caReady = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(CONFIG.CA);
+  $("ca-value").textContent = caReady ? CONFIG.CA : "Coming soon — not launched yet";
+  $("ca-value").classList.toggle("pending", !caReady);
+  $("ca-copy").hidden = !caReady;
   $("x-link").href = CONFIG.X_URL;
+  $("btn-method").addEventListener("click", showMethodology);
 
   $("ca-copy").addEventListener("click", async () => {
     try {
@@ -333,7 +324,7 @@ function initGlobe() {
       world.hexPolygonColor(hexColor);
     })
     .onHexPolygonClick(f => selectCountry(f.properties._code))
-    // Attack sources (red), sensors (cyan)
+    // Top attacking IPs (red)
     .pointsData([])
     .pointLat("lat").pointLng("lng")
     .pointColor("color")
@@ -342,10 +333,7 @@ function initGlobe() {
     .pointResolution(8)
     .pointLabel(d => d.label)
     .pointsMerge(false)
-    .onPointClick(d => {
-      if (d.kind === "attacker") showAttackerIntel(d.ref);
-      else if (d.kind === "sensor") showSensorIntel(d.ref);
-    })
+    .onPointClick(d => showAttackerIntel(d.ref))
     .onPointHover(d => { el.style.cursor = d ? "pointer" : "grab"; })
     .arcsData([])
     .arcStartLat("sLat").arcStartLng("sLng").arcEndLat("eLat").arcEndLng("eLng")
@@ -427,12 +415,7 @@ function hexColor(f) {
 
 function refreshPoints() {
   const pts = [];
-  if (state.layers.sensors) {
-    for (const s of SENSORS) {
-      pts.push({ ...s, kind: "sensor", ref: s, color: COLORS.cyan, alt: 0.02, r: 0.32, label: `<div class="globe-tip"><b>DShield sensor</b><br>${esc(s.name)}</div>` });
-    }
-  }
-  if (state.layers.attacks) {
+  if (state.layers.sources) {
     for (const a of state.attackers) {
       pts.push({
         lat: a.lat, lng: a.lng, kind: "attacker", ref: a, color: COLORS.red,
@@ -448,7 +431,7 @@ function refreshLayers() {
   refreshPoints();
   world.hexPolygonColor(hexColor);
   world.htmlElementsData(state.layers.crypto ? state.chainNodes : []);
-  if (!state.layers.attacks) { state.arcs = []; world.arcsData([]); }
+  if (!state.layers.routes) { state.arcs = []; world.arcsData([]); }
 }
 
 function fireArc(src, dst, color, ringRgb = "255, 42, 77", stroke) {
@@ -600,18 +583,49 @@ function showAttackerIntel(a) {
       <dt>Reports</dt><dd>${fmt.format(a.reports)}</dd>
       <dt>Targets hit</dt><dd>${fmt.format(a.targets)}</dd>
     </dl>
-    <p>This IP is among the most active attack sources reported to the DShield sensor network.</p>
+      ${a.lastseen ? `<dt>Last seen</dt><dd>${esc(a.lastseen)}</dd>` : ""}
+    </dl>
+    <p>Listed by SANS ISC among the most active attack sources reported by DShield honeypot sensors. Location is IP geolocation and is approximate.</p>
     <a href="https://isc.sans.edu/ipinfo/${encodeURIComponent(a.ip)}" target="_blank" rel="noopener noreferrer">Full report on SANS ISC ↗</a>
   `);
 }
 
-function showSensorIntel(s) {
-  flyTo(s.lat, s.lng, 1.6);
+function showRouteIntel(p) {
+  const from = state.countries.get(p.from), to = state.countries.get(p.to);
+  if (to) flyTo((from.lat + to.lat) / 2, (from.lng + to.lng) / 2, 2);
   openIntel(`
-    <h3>${esc(s.name)}</h3>
-    <span class="sub">DShield sensor grid node</span>
-    <p>Honeypot sensors log every inbound probe. Red arcs show the most active attacking IPs hitting the grid.</p>
-    <dl class="kv"><dt>Grid reports · 24h</dt><dd>${$("stat-reports").textContent}</dd></dl>
+    <h3>${esc(p.fromName || p.from)} → ${esc(p.toName || p.to)}</h3>
+    <span class="sub">Cloudflare Radar · ${p.layer === "L7" ? "layer 7 (application) attacks" : "layer 3 (network DDoS) attacks"} · last 24h</span>
+    <div class="big">${p.share.toFixed(2)}%</div>
+    <p>Share of all ${p.layer} attacks mitigated by Cloudflare in the last 24 hours that came from ${esc(p.fromName || p.from)} and targeted ${esc(p.toName || p.to)}.</p>
+    <a href="https://radar.cloudflare.com/security" target="_blank" rel="noopener noreferrer">Cloudflare Radar ↗</a>
+  `);
+}
+
+function showMethodology() {
+  const routes = state.pairs.length
+    ? `<li>Red arcs are real <b>origin → target</b> country pairs from <a href="https://radar.cloudflare.com/security" target="_blank" rel="noopener noreferrer">Cloudflare Radar</a> (last 24h). Thicker means a bigger share of attacks.</li>`
+    : `<li>Attack route arcs (Cloudflare Radar) are not connected yet, so no arcs are drawn. Nothing is simulated.</li>`;
+  openIntel(`
+    <h3>Data &amp; Method</h3>
+    <span class="sub">Everything on this page comes from public threat-intel feeds, loaded in your browser.</span>
+    <h4>On the globe</h4>
+    <ul>
+      ${routes}
+      <li>Red dots are top attacking IPs reported to <a href="https://isc.sans.edu" target="_blank" rel="noopener noreferrer">SANS ISC / DShield</a>, placed by IP geolocation (approximate).</li>
+      <li>Amber pulses are ransomware leak-site victims from <a href="https://www.ransomware.live" target="_blank" rel="noopener noreferrer">ransomware.live</a>, placed at the victim's country.</li>
+      <li>Purple badges are blockchains ranked by 12-month hack losses (<a href="https://defillama.com/hacks" target="_blank" rel="noopener noreferrer">DeFiLlama</a>). Their position is symbolic, not geographic.</li>
+    </ul>
+    <h4>The feed</h4>
+    <ul>
+      <li>The feed cycles through the latest real events. Every entry shows its own age, not the time it appears.</li>
+      <li>Crypto alerts only fire for hacks from the last ${FRESH_DAYS} days.</li>
+    </ul>
+    <h4>Other sources</h4>
+    <ul>
+      <li>CISA Known Exploited Vulnerabilities · IPsum blocklists · ScamSniffer drainer domains</li>
+    </ul>
+    <p class="empty">Not financial advice. $CYBERTRACKER is a memecoin; the tracker is informational.</p>
   `);
 }
 
@@ -679,17 +693,10 @@ async function loadISC() {
     const days = daily.value.filter(d => d.records > 0);
     const last = days[days.length - 1];
     if (last) {
-      state.reportsPerSec = last.records / 86400;
-      // Live estimate: last full day's volume, advancing at its average rate
-      const startedAt = performance.now();
-      const base = last.records;
-      const el = $("stat-reports");
-      countUp(el, base, 1400).then(() => {
-        setInterval(() => {
-          el.textContent = fmt.format(Math.round(base + ((performance.now() - startedAt) / 1000) * state.reportsPerSec));
-        }, 120);
-      });
+      // Latest complete day published by DShield, shown as-is
+      countUp($("stat-reports"), last.records, 1400);
       countUp($("stat-sources"), last.sources, 1400);
+      document.querySelectorAll(".isc-day").forEach(el => { el.textContent = last.date; });
     }
   }
 
@@ -726,7 +733,7 @@ async function loadAttackers() {
         if (g) cache[ip] = g;
       }
       if (g) {
-        out.push({ ip, ...g, reports: src.count || 0, targets: src.attacks || 0 });
+        out.push({ ip, ...g, reports: src.count || 0, targets: src.attacks || 0, lastseen: src.lastseen || "" });
         state.attackers = out.slice();
         if (out.length % 5 === 0) refreshPoints();
       }
@@ -736,6 +743,20 @@ async function loadAttackers() {
   writeCache(cache);
   state.attackers = out;
   refreshPoints();
+}
+
+// Cloudflare Radar attack routes (via our serverless function). If it is unavailable,
+// no arcs are drawn at all rather than inventing destinations.
+async function loadPairs() {
+  const btn = document.querySelector('.layer[data-layer="routes"]');
+  try {
+    const d = await getJSON(FEEDS.pairs, 10000);
+    state.pairs = (d.pairs || []).filter(p => state.countries.has(p.from) && state.countries.has(p.to));
+  } catch (e) {
+    state.pairs = [];
+  }
+  btn.hidden = !state.pairs.length;
+  if (!state.pairs.length) throw new Error("no attack routes");
 }
 
 let geoPrimaryDown = false;
@@ -999,11 +1020,19 @@ function timeAgo(when) {
   return `${Math.round(s / 86400)}d ago`;
 }
 
-function pushFeed(kind, tag, head, detail, onClick) {
+// Age of a YYYY-MM-DD date: "today", "1d ago", …
+function dayAge(day) {
+  if (!day) return "";
+  const d = Math.floor((Date.now() - Date.parse(`${day}T00:00:00Z`)) / 864e5);
+  return d <= 0 ? "today" : `${d}d ago`;
+}
+
+// `age` is when the event actually happened (e.g. "5h ago"), never the replay time
+function pushFeed(kind, tag, head, detail, onClick, age) {
   const feed = $("feed");
   const li = document.createElement("li");
   li.className = kind;
-  li.innerHTML = `<span class="t">${new Date().toISOString().slice(11, 19)}</span>
+  li.innerHTML = `<span class="t">${esc(age)}</span>
     <span class="h"><span class="tag">[${tag}]</span>${head}</span>
     <span class="d">${detail}</span>`;
   if (onClick) li.addEventListener("click", onClick);
@@ -1039,15 +1068,27 @@ function pickWeighted(list, weight) {
   return list[list.length - 1];
 }
 
-function emitAttack() {
-  if (!state.layers.attacks || !state.attackers.length) return false;
+// Real origin → target country pair from Cloudflare Radar
+function emitRoute() {
+  if (!state.layers.routes || !state.pairs.length) return false;
+  const p = pickWeighted(state.pairs, x => Math.sqrt(x.share || 0.1));
+  const from = state.countries.get(p.from), to = state.countries.get(p.to);
+  if (!from || !to) return false;
+  fireArc(from, to, COLORS.red, "255, 42, 77", 0.4 + Math.min(1.4, p.share / 4));
+  pushFeed("atk", `${p.layer} ATTACK`, `${esc(p.fromName || p.from)} → ${esc(p.toName || p.to)}`,
+    `${p.share.toFixed(2)}% of Cloudflare-mitigated ${p.layer} attacks`, () => showRouteIntel(p), "24h");
+  return true;
+}
+
+// Top attacking IP reported to DShield: pulse at its (approximate) location
+function emitSource() {
+  if (!state.layers.sources || !state.attackers.length) return false;
   const a = pickWeighted(state.attackers, x => Math.sqrt(x.reports || 1));
-  const s = SENSORS[(Math.random() * SENSORS.length) | 0];
-  fireArc(a, s, COLORS.red);
-  addRing(a, "255, 42, 77", 1.6, 1.5, 700, 1600);
+  addRing(a, "255, 42, 77", 3, 2, 700, 2200);
   const where = [a.city, a.country].filter(Boolean).join(", ");
-  pushFeed("atk", "INBOUND", `${esc(a.ip)} → ${esc(s.name)}`,
-    `${esc(where)} · ${fmt.format(a.reports)} reports`, () => showAttackerIntel(a));
+  pushFeed("atk", "ATTACK SOURCE", esc(a.ip),
+    `${esc(where)} · ${fmt.format(a.reports)} reports to DShield`, () => showAttackerIntel(a),
+    dayAge(a.lastseen));
   return true;
 }
 
@@ -1061,8 +1102,8 @@ function emitVictim() {
     addRing(pos, "255, 255, 255", 2.5, 2, 900, 1800);
   }
   pushFeed(crypto ? "rw crypto" : "rw", crypto ? "CRYPTO RANSOM" : "RANSOMWARE", `${esc(v.group_name)} ▸ ${esc(v.post_title)}`,
-    `${esc(countryName(v.country))}${sector(v) ? " · " + esc(sector(v)) : ""} · ${timeAgo(v.discovered)}`,
-    pos ? () => selectCountry(v.country) : null);
+    `${esc(countryName(v.country))}${sector(v) ? " · " + esc(sector(v)) : ""}`,
+    pos ? () => selectCountry(v.country) : null, timeAgo(v.discovered));
   return true;
 }
 
@@ -1072,22 +1113,21 @@ function emitCrypto() {
   const chains = h.chain || [];
   showCryptoAlert(h);
   pulseChains(chains);
-  // DPRK-attributed thefts: draw the strike from Pyongyang to the chain's node
-  const node = state.chainNodes.find(n => chains.includes(n.chain));
-  if (DPRK_RE.test(h.description || "") && node) fireArc(DPRK, node, COLORS.purple, "177, 77, 255", 0.9);
+  // Thefts attributed to North Korea (per the incident report) pulse at Pyongyang
+  if (DPRK_RE.test(h.description || "")) addRing(DPRK, "177, 77, 255", 6, 3, 500, 3000);
   pushFeed("crypto", "CRYPTO HACK", `${esc(h.name)} ▸ ${money(h.amount)}`,
-    `${esc(chains.slice(0, 3).join(", ") || h.targetType || "")} · ${esc(h.technique || h.classification || "")} · ${timeAgo(h.date * 1000)}`,
-    () => showHackIntel(h));
+    `${esc(chains.slice(0, 3).join(", ") || h.targetType || "")} · ${esc(h.technique || h.classification || "")}`,
+    () => showHackIntel(h), timeAgo(h.date * 1000));
   return true;
 }
 
 function startReplay() {
-  const order = [emitAttack, emitAttack, emitVictim, emitAttack, emitCrypto];
+  const order = [emitRoute, emitSource, emitRoute, emitVictim, emitRoute, emitSource, emitCrypto];
   let n = 0;
   (async function loop() {
     while (true) {
       const first = order[n++ % order.length];
-      const ok = first() || emitAttack() || emitVictim() || emitCrypto();
+      const ok = first() || emitRoute() || emitSource() || emitVictim() || emitCrypto();
       await sleep(ok ? 650 + Math.random() * 900 : 1000);
       if (document.hidden) await sleep(1500);
     }
@@ -1129,6 +1169,7 @@ async function boot() {
     loadKEV().catch(e => console.warn("KEV", e)),
     loadIpsum().catch(e => console.warn("ipsum", e)),
     loadAttackers().catch(e => console.warn("attackers", e)),
+    loadPairs().catch(() => console.info("Attack routes: Cloudflare Radar not configured")),
   ];
 
   // Start the show as soon as something is ready
