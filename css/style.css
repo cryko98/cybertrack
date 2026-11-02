@@ -20,6 +20,24 @@
 
 * { box-sizing: border-box; }
 
+/* Neon scrollbars */
+/* Chrome ignores ::-webkit-scrollbar when scrollbar-color is set, so keep that for Firefox only */
+@supports (-moz-appearance: none) {
+  * { scrollbar-width: thin; scrollbar-color: rgba(0, 229, 255, 0.55) rgba(2, 14, 34, 0.5); }
+  .intel.crypto { scrollbar-color: rgba(177, 77, 255, 0.7) rgba(30, 6, 60, 0.5); }
+}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: rgba(2, 14, 34, 0.5); border-radius: 3px; }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--cyan), var(--cyan-2));
+  border-radius: 3px;
+  box-shadow: 0 0 8px var(--cyan);
+}
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #7ff3ff, var(--cyan)); }
+::-webkit-scrollbar-button { display: none; height: 0; }
+::-webkit-scrollbar-corner { background: transparent; }
+.intel.crypto::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #b14dff, #14f195); box-shadow: 0 0 8px #b14dff; }
+
 html, body {
   margin: 0;
   height: 100%;
@@ -644,6 +662,48 @@ body {
 .hack-list .hd { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hack-list .hw { color: var(--muted); text-align: right; font-size: 11px; }
 .hack-list .skeleton { height: 34px; border: 0; }
+.hack-list li.major {
+  border-left: 3px solid var(--red);
+  background: linear-gradient(90deg, rgba(255, 42, 77, 0.28), rgba(153, 69, 255, 0.12) 60%, transparent);
+  box-shadow: inset 0 0 14px rgba(255, 42, 77, 0.15);
+}
+.hack-list li.major .ha { color: #fff; text-shadow: 0 0 8px var(--red); }
+.mj-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 5px;
+  border-radius: 2px;
+  background: var(--red);
+  color: #fff;
+  font-size: 9px;
+  letter-spacing: 1px;
+  vertical-align: 1px;
+  animation: pulse 1.6s infinite;
+}
+
+.crypto-major {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 42, 77, 0.6);
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(255, 42, 77, 0.22), rgba(153, 69, 255, 0.15));
+  box-shadow: 0 0 16px rgba(255, 42, 77, 0.25), inset 0 0 18px rgba(255, 42, 77, 0.12);
+  color: #fff;
+  font-family: var(--font-mono);
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.crypto-major[hidden] { display: none; }
+.crypto-major:hover { box-shadow: 0 0 26px rgba(255, 42, 77, 0.55); transform: translateY(-1px); }
+.crypto-major .mj-tag { grid-column: 1 / -1; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #ff8095; }
+.crypto-major .mj-name { font-family: var(--font-display); font-size: 14px; font-weight: 700; }
+.crypto-major .mj-amt { font-family: var(--font-display); font-size: 16px; font-weight: 900; color: #ff8095; text-shadow: 0 0 10px var(--red); }
+.crypto-major .mj-when { grid-column: 1 / -1; font-size: 11px; color: var(--muted); }
 
 .drainer-list li {
   display: flex;
@@ -791,7 +851,6 @@ body {
   box-shadow: 0 0 30px rgba(0, 229, 255, 0.25);
   font-size: 12px;
   animation: intelIn 0.35s ease-out;
-  scrollbar-width: thin;
 }
 .intel[hidden] { display: none; }
 .intel.crypto { border-color: var(--purple); box-shadow: 0 0 30px rgba(153, 69, 255, 0.4); }

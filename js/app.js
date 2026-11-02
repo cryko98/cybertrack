@@ -74,6 +74,8 @@ const DPRK_RE = /lazarus|north korea|dprk|tradertraitor|bluenoroff/i;
 const CRYPTO_VICTIM_RE = /crypto|bitcoin|blockchain|\bcoin|web3|defi|\bnft\b|wallet|token|exchange/i;
 const SOL_DRAINER_RE = /solana|solflare|phantom|jupiter|jupag|jup-|raydium|pump\.?fun|pumpfun|meteora|magiceden|magic-eden|tensor|bonk|backpack|jito|marinade|kamino|orca-|drift-/i;
 const DEFAULT_VIEW = { lat: 25, lng: 10 };
+const FRESH_DAYS = 7;       // crypto alerts only for hacks this recent
+const MAJOR_USD = 50e6;     // pinned as MAJOR in the hack list
 
 const state = {
   countries: new Map(), // ISO2 -> { lat, lng, name }
@@ -83,6 +85,7 @@ const state = {
   victimByCountry: new Map(),
   hacks: [],            // DeFiLlama hacks, newest first
   recentHacks: [],
+  majorHacks: [],
   chainNodes: [],
   chainFilter: null,
   tickerKev: "",
@@ -812,8 +815,21 @@ async function loadCrypto() {
   const now = Date.now() / 1000;
   const year = hacks.filter(h => h.date >= now - 365 * 86400);
   const month = hacks.filter(h => h.date >= now - 30 * 86400);
-  state.recentHacks = hacks.filter(h => h.date >= now - 60 * 86400);
+  // Alerts only replay fresh incidents, biggest first
+  state.recentHacks = hacks.filter(h => h.date >= now - FRESH_DAYS * 86400)
+    .sort((a, b) => (b.amount || 0) - (a.amount || 0));
+  state.majorHacks = month.filter(h => h.amount >= MAJOR_USD).sort((a, b) => b.amount - a.amount);
   const sum = list => list.reduce((s, h) => s + (h.amount || 0), 0);
+
+  const biggest = state.majorHacks[0];
+  const majorBtn = $("crypto-major");
+  majorBtn.hidden = !biggest;
+  if (biggest) {
+    majorBtn.innerHTML = `<span class="mj-tag">⚠ Largest hit · 30d</span>
+      <span class="mj-name">${esc(biggest.name)}</span><span class="mj-amt">${money(biggest.amount)}</span>
+      <span class="mj-when">${esc(biggest.technique || biggest.classification || "")} · ${timeAgo(biggest.date * 1000)}</span>`;
+    majorBtn.onclick = () => showHackIntel(biggest);
+  }
 
   countUp($("crypto-12m"), sum(year), 1600, money);
   countUp($("crypto-30d"), sum(month), 1400, money);
@@ -875,17 +891,22 @@ function setChainFilter(chain) {
 
 function renderHackList() {
   const yearAgo = Date.now() / 1000 - 365 * 86400;
-  const rows = [];
-  state.hacks.forEach((h, i) => {
-    if (rows.length >= 5) return;
-    if (state.chainFilter && !(h.date >= yearAgo && (h.chain || []).includes(state.chainFilter))) return;
-    rows.push(`
-      <li data-i="${i}" class="${(h.chain || []).includes("Solana") ? "sol" : ""}" title="Click for details">
-        <span class="hn">${esc(h.name)}</span><span class="ha">${money(h.amount)}</span>
+  const row = (h, major) => `
+      <li data-i="${state.hacks.indexOf(h)}" class="${major ? "major" : ""}${(h.chain || []).includes("Solana") ? " sol" : ""}" title="Click for details">
+        <span class="hn">${major ? '<span class="mj-badge">MAJOR</span>' : ""}${esc(h.name)}</span><span class="ha">${money(h.amount)}</span>
         <span class="hd">${esc((h.chain || []).slice(0, 3).join(", ") || h.targetType || "")} · ${esc(h.technique || h.classification || "")}</span>
         <span class="hw">${timeAgo(h.date * 1000)}</span>
-      </li>`);
-  });
+      </li>`;
+
+  // Pin the biggest hacks of the last 30 days above the newest ones
+  const pinned = state.chainFilter ? [] : (state.majorHacks || []).slice(0, 2);
+  const rows = pinned.map(h => row(h, true));
+  for (const h of state.hacks) {
+    if (rows.length >= 6) break;
+    if (pinned.includes(h)) continue;
+    if (state.chainFilter && !(h.date >= yearAgo && (h.chain || []).includes(state.chainFilter))) continue;
+    rows.push(row(h, false));
+  }
   $("crypto-hacks").innerHTML = rows.join("") || `<li class="drainer-note">No hacks on this chain in the last 12 months.</li>`;
 }
 
