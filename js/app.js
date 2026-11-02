@@ -1184,6 +1184,9 @@ async function boot() {
     loadRansomware().catch(() => {});
     loadCrypto().catch(() => {});
   }, 10 * 60 * 1000);
+
+  // Attack routes update hourly upstream; this hits Vercel's cache, not Cloudflare
+  setInterval(() => { loadPairs().catch(() => {}); }, 60 * 60 * 1000);
 }
 
 boot();

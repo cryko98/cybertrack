@@ -1,6 +1,7 @@
 // Vercel serverless function: real attack origin → target country pairs from Cloudflare Radar.
 // Needs the CLOUDFLARE_API_TOKEN environment variable (custom token with Account › Radar › Read).
-// Responses are cached at the edge for 15 minutes, so the token is never exposed to visitors.
+// Cloudflare updates this data about hourly, so the edge cache keeps a response for 1 hour.
+// The cache only refreshes when a visitor requests it, so without traffic Cloudflare is never called.
 
 const BASE = "https://api.cloudflare.com/client/v4/radar/attacks";
 
@@ -39,7 +40,8 @@ module.exports = async (req, res) => {
     if (!pairs.length) throw new Error("No data from Cloudflare Radar");
 
     const meta = (l7.status === "fulfilled" ? l7.value : l3.value)?.meta || {};
-    res.setHeader("Cache-Control", "s-maxage=900, stale-while-revalidate=3600");
+    // Fresh for 1h; after that the next visitor gets the cached copy instantly while it refreshes in the background
+    res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate=86400");
     res.status(200).json({
       source: "Cloudflare Radar",
       window: meta.dateRange?.[0] || null,
